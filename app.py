@@ -1,11 +1,17 @@
-# import flask and its components.
+
+from multiprocessing.dummy import connection
+
 from flask import *
+import os
 
 # Import the pymysql module - It  helps us to create a connection between python flask and mysql database
 import pymysql
 
 # Create a flask application and give it a name.
 app = Flask(__name__)
+
+# configure the location to where your product images will be saved on your application.
+app.config["UPLOAD_FOLDER"] = "static/images"
 
 
 # Below is the sign up route.
@@ -80,6 +86,85 @@ def signin():
             user = cursor.fetchone()
             # Return the detaails to the frontend as well as a message.
             return jsonify({"message" : "User logged in successful", "user":user})
+
+# Below is the route for adding products.
+@app.route("/api/add_product", methods=["POST"])
+def Addproduct():
+    if request.method == "POST":
+        # Extract the data entered on the form.
+        product_name = request.form["product_name"]
+        product_description = request.form["product_description"]
+        product_cost = request.form["product_cost"]
+        # For the product photo, we shall fetch it from files as shown below.
+        product_photo = request.files["product_photo"]
+
+        # Extract the filename of the product photo
+        filename = product_photo.filename
+        # by use of the os module (operating system) we can extract the file path where the image is currently saved.
+        photo_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+
+        # save the product photo image into the new location
+        product_photo.save(photo_path)
+
+        # Print the out to test whether you are receiving the details sent with the request.
+        # print(product_name, product_description, product_cost, product_photo)
+
+        # Establish a connection to the db.
+        connection = pymysql.connect(host="localhost", user="root", password="", database="sokogardenonline")
+        # Create a cursor.
+        cursor = connection.cursor()
+
+        # Structure the sql query to insert the product details to the database.
+        sql ="INSERT INTO product_details(product_name, product_description, product_cost, product_photo) VALUES (%s, %s, %s, %s)"
+
+        # Create a tuple that will hold the data from the form which are currently held on the different variable declared before.
+        data = (product_name, product_description, product_cost, filename)
+
+        # Use the cursor to execute the sql as you replace the placeholders with the actual data.
+        cursor.execute(sql, data)
+        
+        # commit the changes to the database.
+        connection.commit()
+
+
+
+
+
+        return jsonify({"message" : "Product added successfully"})
+
+
+
+
+
+
+# Below is the route for fetching all the products from the database.
+@app.route("/api/get_products")
+def get_products():
+     # Establish a connection to the database.
+     connection = pymysql.connect(host="localhost", user="root", password="", database="sokogardenonline")
+
+     #  Create a cursor.
+     cursor = connection.cursor(pymysql.cursors.DictCursor)
+
+     # Structure the query to fetch all the products from  the table products_details.
+     sql = "SELECT * FROM product_details"
+
+     #  Execute the query
+     cursor.execute(sql)
+
+     # Create a variable that will hold the data fetched from the table.
+     products = cursor.fetchall()
+   
+
+
+
+     return jsonify(products)
+
+
+
+
+
+
 
 
 
